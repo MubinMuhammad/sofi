@@ -1,0 +1,81 @@
+#!/bin/sh -eu
+
+dir_cache=$HOME/.cache/sofi.cache
+
+# REBUILD CACHE (force by passing -c)
+if ! [ -f "$dir_cache" ] || [ "$1" = -c ]; then
+    printf 'rebuilding cache...\n'
+
+    for file in /usr/share/applications/*.desktop; do
+        [ -f "$file" ] || continue
+
+        # case $file in
+        #     */application1.desktop|*/application2.desktop) continue;;
+        # esac
+
+        term=0
+        exec=
+        name=
+        nodisplay=0
+        while IFS= read -r line; do
+            case $line in
+                '')
+                    break
+                ;;
+                Terminal=true)
+                    term=1
+                ;;
+                Exec=?*)
+                    exec=${line#Exec=}
+                    exec=${exec%% *}
+                ;;
+                Name=?*)
+                    [ -z "$name" ] && name=${line##Name=}
+                ;;
+                NoDisplay=true)
+                    nodisplay=1
+                    break
+                ;;
+            esac
+        done < "$file"
+        [ "$nodisplay" = 1 ] && nodisplay=0 && continue
+
+        [ -n "$exec" ] && [ -n "$name" ] &&
+            printf '%s*%s*%s*%s\n' "$file" "$term" "$exec" "$name"
+    done > "$dir_cache"
+fi
+
+# SELECTION
+selection=$(fzf -d \* -e --cycle --no-sort --reverse --with-nth 4 \
+    --bind 'left:page-up,right:page-down' < "$dir_cache")
+[ -z "$selection" ] && exit 0
+
+# HISTORY
+read -r line1 < "$dir_cache" && [ "$selection" != "$line1" ] &&
+    while IFS= read -r line; do
+        if [ "$line" != "$selection" ]; then
+            cache="$selection"
+            while IFS= read -r line || [ -n "$line" ]; do
+                [ "$line" != "$selection" ] &&
+                    cache="$cache
+$line"
+            done < "$dir_cache"
+            printf '%s' "$cache" > "$dir_cache"
+        fi
+        break
+    done < "$dir_cache"
+
+# RUN
+bin=${selection#*\*}
+bin=${bin#*\*}
+bin=${bin%\**}
+# desktop_entry=${selection%\**}
+# desktop_entry=${desktop_entry%\**}
+# desktop_entry=${desktop_entry%\**}                      # absolute path
+# desktop_entry=${desktop_entry#/usr/share/applications/} # basename
+# desktop_entry=${desktop_entry%.desktop}                 # desktop file ID
+case $selection in
+    *\*1\**) exec "$bin";;
+    *\*0\**) swaymsg exec "$bin";;
+    *) exit 1;;
+esac

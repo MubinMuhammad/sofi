@@ -1,4 +1,4 @@
-#!/bin/sh -eu
+#!/bin/env bash
 
 dir_cache=$HOME/.cache/sofi.cache
 

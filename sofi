@@ -48,7 +48,7 @@ fi
 # SELECTION
 selection=$(fzf -d \* -e --cycle --no-sort --reverse --with-nth 4 \
     --bind 'left:page-up,right:page-down' < "$dir_cache")
-[ -z "$selection" ] && exit 0
+[ -z "$selection" ] && return 0
 
 # HISTORY
 read -r line1 < "$dir_cache" && [ "$selection" != "$line1" ] &&
@@ -77,5 +77,5 @@ bin=${bin%\**}
 case $selection in
     *\*1\**) exec "$bin";;
     *\*0\**) swaymsg exec "$bin";;
-    *) exit 1;;
+    *) return 1;;
 esac
